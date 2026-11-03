@@ -1,0 +1,166 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Collaborative Kanban — ER Diagram</title>
+<style>
+  body { margin: 0; font-family: -apple-system, 'Segoe UI', Inter, sans-serif; background: #f7f6f2; color: #1d1f24; }
+  .canvas { position: relative; width: 1420px; height: 1000px; }
+  h1 { position: absolute; left: 40px; top: 18px; margin: 0; font-size: 22px; }
+  .sub { position: absolute; left: 40px; top: 50px; font-size: 13px; color: #6b6f76; }
+  .ent { position: absolute; width: 300px; background: #fff; border: 1.5px solid #c9c6bc; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 6px rgb(0 0 0 / 6%); font-size: 12.5px; }
+  .ent header { background: #3b5bdb; color: #fff; padding: 8px 12px; font-weight: 700; display: flex; justify-content: space-between; }
+  .ent header span { font-weight: 400; opacity: .8; font-size: 11px; }
+  .ent.org header { background: #8a5300; }
+  .ent.user header { background: #2b8a3e; }
+  .ent.log header { background: #5f3dc4; }
+  .ent ul { list-style: none; margin: 0; padding: 6px 0; }
+  .ent li { display: flex; justify-content: space-between; padding: 3px 12px; }
+  .ent li b { font-weight: 600; }
+  .ent li i { color: #6b6f76; font-style: normal; font-family: ui-monospace, monospace; font-size: 11px; }
+  .pk b::before { content: 'PK '; color: #c77c02; font-size: 10px; }
+  .fk b::before { content: 'FK '; color: #3b5bdb; font-size: 10px; }
+  .tn { background: #fff4d6; }
+  .tn b::after { content: ' ★'; color: #c77c02; }
+  .idx { border-top: 1px dashed #dcd9d0; padding: 6px 12px 8px; color: #6b6f76; font-size: 11px; }
+  svg { position: absolute; inset: 0; pointer-events: none; }
+  .legend { position: absolute; right: 40px; top: 20px; font-size: 12px; color: #444; background: #fff; border: 1px solid #dcd9d0; border-radius: 8px; padding: 8px 12px; line-height: 1.7; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <h1>Collaborative Kanban — MongoDB data model</h1>
+  <div class="sub">8 collections · every tenant-owned document carries tenantId (★) and every query is filtered by the authorised tenant</div>
+  <div class="legend">
+    <div><b style="color:#c77c02">PK</b> primary key (_id, ObjectId) &nbsp; <b style="color:#3b5bdb">FK</b> reference</div>
+    <div><span style="background:#fff4d6;padding:0 4px">★ tenantId</span> isolation key</div>
+    <div>1 ──&lt; N &nbsp; one-to-many · membership.tenantId = null → org-level role</div>
+  </div>
+
+  <svg id="links" width="1420" height="1000"></svg>
+
+  <div class="ent org" id="org" style="left:40px; top:90px">
+    <header>organizations <span>Organization</span></header>
+    <ul>
+      <li class="pk"><b>_id</b><i>ObjectId</i></li>
+      <li><b>name</b><i>String</i></li>
+      <li class="fk"><b>createdBy</b><i>→ users</i></li>
+      <li><b>createdAt / updatedAt</b><i>Date</i></li>
+    </ul>
+  </div>
+
+  <div class="ent" id="tenant" style="left:380px; top:90px">
+    <header>tenants <span>Tenant (branch)</span></header>
+    <ul>
+      <li class="pk"><b>_id</b><i>ObjectId</i></li>
+      <li class="fk"><b>organizationId</b><i>→ organizations</i></li>
+      <li><b>name</b><i>String</i></li>
+      <li><b>createdAt / updatedAt</b><i>Date</i></li>
+    </ul>
+    <div class="idx">unique (organizationId, name)</div>
+  </div>
+
+  <div class="ent" id="board" style="left:720px; top:90px">
+    <header>boards <span>Board</span></header>
+    <ul>
+      <li class="pk"><b>_id</b><i>ObjectId</i></li>
+      <li class="fk"><b>organizationId</b><i>→ organizations</i></li>
+      <li class="fk tn"><b>tenantId</b><i>→ tenants</i></li>
+      <li><b>name</b><i>String</i></li>
+      <li><b>description</b><i>String</i></li>
+      <li class="fk"><b>createdBy</b><i>→ users</i></li>
+      <li><b>createdAt / updatedAt</b><i>Date</i></li>
+    </ul>
+    <div class="idx">idx (tenantId, createdAt)</div>
+  </div>
+
+  <div class="ent" id="column" style="left:1060px; top:90px">
+    <header>columns <span>Column</span></header>
+    <ul>
+      <li class="pk"><b>_id</b><i>ObjectId</i></li>
+      <li class="fk"><b>organizationId</b><i>→ organizations</i></li>
+      <li class="fk tn"><b>tenantId</b><i>→ tenants</i></li>
+      <li class="fk"><b>boardId</b><i>→ boards</i></li>
+      <li><b>name</b><i>String</i></li>
+      <li><b>position</b><i>Number</i></li>
+    </ul>
+    <div class="idx">idx (tenantId, boardId, position)</div>
+  </div>
+
+  <div class="ent user" id="user" style="left:40px; top:500px">
+    <header>users <span>User</span></header>
+    <ul>
+      <li class="pk"><b>_id</b><i>ObjectId</i></li>
+      <li><b>name</b><i>String</i></li>
+      <li><b>email</b><i>String (unique)</i></li>
+      <li><b>passwordHash</b><i>bcrypt</i></li>
+      <li><b>createdAt / updatedAt</b><i>Date</i></li>
+    </ul>
+    <div class="idx">unique (email)</div>
+  </div>
+
+  <div class="ent" id="member" style="left:380px; top:500px">
+    <header>memberships <span>RBAC</span></header>
+    <ul>
+      <li class="pk"><b>_id</b><i>ObjectId</i></li>
+      <li class="fk"><b>userId</b><i>→ users</i></li>
+      <li class="fk"><b>organizationId</b><i>→ organizations</i></li>
+      <li class="fk tn"><b>tenantId</b><i>→ tenants | null</i></li>
+      <li><b>role</b><i>org_admin | tenant_admin | member</i></li>
+      <li><b>createdAt</b><i>Date</i></li>
+    </ul>
+    <div class="idx">unique (userId, organizationId, tenantId)</div>
+  </div>
+
+  <div class="ent log" id="log" style="left:720px; top:500px">
+    <header>activity_logs <span>ActivityLog</span></header>
+    <ul>
+      <li class="pk"><b>_id</b><i>ObjectId</i></li>
+      <li class="fk tn"><b>tenantId</b><i>→ tenants</i></li>
+      <li class="fk"><b>boardId</b><i>→ boards</i></li>
+      <li class="fk"><b>userId</b><i>→ users</i></li>
+      <li><b>entityType</b><i>task|board|column|…</i></li>
+      <li><b>entityId</b><i>ObjectId</i></li>
+      <li><b>action</b><i>created|updated|moved|deleted</i></li>
+      <li><b>details</b><i>Mixed (JSON)</i></li>
+    </ul>
+    <div class="idx">idx (tenantId, createdAt) · (tenantId, boardId, createdAt)</div>
+  </div>
+
+  <div class="ent" id="task" style="left:1060px; top:500px">
+    <header>tasks <span>Task</span></header>
+    <ul>
+      <li class="pk"><b>_id</b><i>ObjectId</i></li>
+      <li class="fk tn"><b>tenantId</b><i>→ tenants</i></li>
+      <li class="fk"><b>boardId</b><i>→ boards</i></li>
+      <li class="fk"><b>columnId</b><i>→ columns</i></li>
+      <li><b>title / description</b><i>String</i></li>
+      <li class="fk"><b>assignedTo</b><i>→ users | null</i></li>
+      <li><b>priority / dueDate / labels</b><i>…</i></li>
+      <li><b>position</b><i>Number (fractional)</i></li>
+      <li><b>version</b><i>Number (OCC)</i></li>
+    </ul>
+    <div class="idx">idx (tenantId, boardId, columnId, position)</div>
+  </div>
+</div>
+<script>
+const svg=document.getElementById('links'), NS='http://www.w3.org/2000/svg';
+const box=id=>{const e=document.getElementById(id);return {l:e.offsetLeft,t:e.offsetTop,r:e.offsetLeft+e.offsetWidth,b:e.offsetTop+e.offsetHeight,cx:e.offsetLeft+e.offsetWidth/2};};
+svg.innerHTML='<defs><marker id="crow" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="12" markerHeight="12" orient="auto"><path d="M0,6 L11,0 M0,6 L11,6 M0,6 L11,12" stroke="#555" fill="none" stroke-width="1.4"/></marker></defs>';
+function link(d,label,lx,ly){const p=document.createElementNS(NS,'path');p.setAttribute('d',d);p.setAttribute('stroke','#555');p.setAttribute('stroke-width','1.6');p.setAttribute('fill','none');p.setAttribute('marker-end','url(#crow)');svg.appendChild(p);
+ const t=document.createElementNS(NS,'text');t.setAttribute('x',lx);t.setAttribute('y',ly);t.setAttribute('font-size','11');t.setAttribute('fill','#444');t.setAttribute('font-family','ui-monospace,monospace');t.textContent=label;svg.appendChild(t);}
+const B={};['org','tenant','board','column','user','member','log','task'].forEach(i=>B[i]=box(i));
+const H=(a,b,y)=>link(`M${B[a].r},${y} L${B[b].l},${y}`,'1:N',B[a].r+4,y-8);
+H('org','tenant',120);H('tenant','board',120);H('board','column',120);H('user','member',560);
+const V=(a,b,x1,x2,label)=>{const y1=B[a].b,y2=B[b].t;link(`M${x1},${y1} C${x1},${(y1+y2)/2} ${x2},${(y1+y2)/2} ${x2},${y2}`,label,(x1+x2)/2+6,(y1+y2)/2);};
+V('column','task',B.column.cx,B.task.cx,'1:N');
+V('board','task',B.board.r-40,B.task.l+40,'1:N');
+V('org','member',B.org.cx,B.member.l+40,'1:N');
+V('tenant','member',B.tenant.cx,B.member.cx,'1:N');
+V('tenant','log',B.tenant.r-40,B.log.l+60,'1:N');
+const yb=Math.max(B.user.b,B.member.b,B.log.b,B.task.b);
+link(`M${B.user.cx-30},${B.user.b} C${B.user.cx-30},${yb+60} ${B.log.cx},${yb+60} ${B.log.cx},${B.log.b}`,'users 1:N activity_logs (userId)',B.member.l+20,yb+30);
+link(`M${B.user.cx+30},${B.user.b} C${B.user.cx+30},${yb+110} ${B.task.cx},${yb+110} ${B.task.cx},${B.task.b}`,'users 1:N tasks (assignedTo)',B.log.l+40,yb+95);
+</script>
+</body>
+</html>
